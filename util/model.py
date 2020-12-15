@@ -32,17 +32,6 @@ class FPN:
             kernel_regularizer=None
         )
         return conved
-        # Get the number of channels in the input
-        # c_i =int(input.get_shape()[-1])
-        # # Verify that the grouping parameter is valid
-        # assert c_i % group == 0
-        # assert c_o % group == 0
-        # # Convolution for a given input and kernel
-        # with tf.variable_scope(name) as scope:
-        #     conved = tf.nn.conv2d(input, FPN.make_var('weights', [k_h, k_w, c_i, c_o]), [1, s_h, s_w, 1], padding=padding)
-        #     if relu:
-        #         conved = tf.nn.relu(conved, name=scope.name)
-        #     return conved
     @staticmethod
     def deconv(
              input,
@@ -67,57 +56,9 @@ class FPN:
             kernel_regularizer=None
         )
         return conved
-        ######## workaround
-        # # if padding is None:
-        # #     padding = 'SAME'     
-        # # Verify that the padding is acceptable
-        # # Get the number of channels in the input
-        # c_i = input.get_shape()[-1]
-        # # Verify that the grouping parameter is valid
-        # assert c_i % group == 0
-        # assert c_o % group == 0
-        # # Convolution for a given input and kernel
-        # stride_shape = [1, s_h, s_w, 1]
-        # kernel_shape = [k_h, k_w, c_i, c_o]
-        # input_shape = input.get_shape().as_list()
-        # out_shape = []
-        # for i in range(len(input.get_shape())-1):
-        #     if i == 0:
-        #         if input_shape[i] is None:
-        #             out_shape.append(None)
-        #         else:
-        #             out_shape.append(int(input_shape[i]))
-        #     else:
-        #         kernel_i= int(kernel_shape[i])
-        #         stride_i = int(stride_shape[i])
-        #         input_i = int(input_shape[i])
-        #         o = stride_i * (input_i - 1) + int(kernel_shape[0]) - 2 * padding
-        #         out_shape.append(o)
-        # out_shape.append(c_o)
-        #         # if padding == 'SAME':   
-        #         #     out_shape.append(int(np.ceil(float(input_i) / float(stride_i) )))
-        #         # else:
-        #         #     out_shape.append(int(np.ceil(float(input_i - kernel_i + 1) / float(stride_i) )))
-        # print(input_shape, name, out_shape)
-        #     #out_shape.append(Math.floor((input_i + 2 * pad_i - kernel_i) / float(stride_i) + 1))
-        # with tf.variable_scope(name) as scope:
-        #     if padding == 1:
-        #         padding_str = 'SAME'
-        #     else:
-        #         padding_str = 'VALID'
-        #     output = tf.nn.conv2d_transpose(input, FPN.make_var('weights', shape=[k_h, k_w, c_i, c_o]), output_shape=out_shape, strides=stride_shape, padding=padding_str)
-        #     if relu:
-        #         # ReLU non-linearity
-        #         output = tf.nn.relu(output, name=scope.name)
-        #     return output
     @staticmethod
     def max_pool(input, k_h, k_w, s_h, s_w, name, padding='SAME'):
         return tf.layers.max_pooling2d(inputs=input, pool_size=[k_h, k_w], strides=[s_h, s_w], padding='SAME')
-        # return tf.nn.max_pool(input,
-        #                       ksize=[1, k_h, k_w, 1],
-        #                       strides=[1, s_h, s_w, 1],
-        #                       padding=padding,
-        #                       name=name)
     @staticmethod
     def concat(inputs, axis, name):
         return tf.concat(axis=axis, values=inputs, name=name)
@@ -128,8 +69,7 @@ class FPN:
         assert(len(inputs) == 2)
         return tf.add(inputs[0], inputs[1])
     @staticmethod
-    def batch_normalization(input, name, scale_offset=True, relu=False):
-        is_training = False #workaround
+    def batch_normalization(input, name, scale_offset=True, relu=False, is_training=False):
         normalized = tf.layers.batch_normalization(
             inputs=input,
             axis=-1,
@@ -150,175 +90,175 @@ class FPN:
         is_training = tf.placeholder(tf.bool)
         
         conv1_7x7_s2 = FPN.conv(inputs, 7, 7, 64, 2, 2, relu=False, name='conv1_7x7_s2')
-        conv1_7x7_s2_BatchNorm = FPN.batch_normalization(conv1_7x7_s2, scale_offset=False, relu=True, name='conv1_7x7_s2_BatchNorm')
+        conv1_7x7_s2_BatchNorm = FPN.batch_normalization(conv1_7x7_s2, scale_offset=False, relu=True, name='conv1_7x7_s2_BatchNorm',is_training = is_training)
         pool1_3x3_s2 = FPN.max_pool(conv1_7x7_s2_BatchNorm, 3, 3, 2, 2, name='pool1_3x3_s2')
         conv2_3x3_reduce = FPN.conv(pool1_3x3_s2, 1, 1, 64, 1, 1, relu=False, name='conv2_3x3_reduce')
-        conv2_3x3_reduce_BatchNorm = FPN.batch_normalization(conv2_3x3_reduce, scale_offset=False, relu=True, name='conv2_3x3_reduce_BatchNorm')
+        conv2_3x3_reduce_BatchNorm = FPN.batch_normalization(conv2_3x3_reduce, scale_offset=False, relu=True, name='conv2_3x3_reduce_BatchNorm',is_training = is_training)
         conv2_3x3 = FPN.conv(conv2_3x3_reduce_BatchNorm, 3, 3, 192, 1, 1, relu=False, name='conv2_3x3')
-        conv2_3x3_BatchNorm = FPN.batch_normalization(conv2_3x3, scale_offset=False, relu=True, name='conv2_3x3_BatchNorm')
+        conv2_3x3_BatchNorm = FPN.batch_normalization(conv2_3x3, scale_offset=False, relu=True, name='conv2_3x3_BatchNorm',is_training = is_training)
         pool2_3x3_s2 = FPN.max_pool(conv2_3x3_BatchNorm, 3, 3, 2, 2, name='pool2_3x3_s2')
         inception_3a_1x1 = FPN.conv(pool2_3x3_s2, 1, 1, 64, 1, 1, relu=False, name='inception_3a_1x1')
-        inception_3a_1x1_BatchNorm = FPN.batch_normalization(inception_3a_1x1, scale_offset=False, relu=True, name='inception_3a_1x1_BatchNorm')
+        inception_3a_1x1_BatchNorm = FPN.batch_normalization(inception_3a_1x1, scale_offset=False, relu=True, name='inception_3a_1x1_BatchNorm',is_training = is_training)
 
         inception_3a_3x3_reduce = FPN.conv(pool2_3x3_s2, 1, 1, 96, 1, 1, relu=False, name='inception_3a_3x3_reduce')
-        inception_3a_3x3_reduce_BatchNorm = FPN.batch_normalization(inception_3a_3x3_reduce, scale_offset=False, relu=True, name='inception_3a_3x3_reduce_BatchNorm')
+        inception_3a_3x3_reduce_BatchNorm = FPN.batch_normalization(inception_3a_3x3_reduce, scale_offset=False, relu=True, name='inception_3a_3x3_reduce_BatchNorm',is_training = is_training)
         inception_3a_3x3 = FPN.conv(inception_3a_3x3_reduce_BatchNorm, 3, 3, 128, 1, 1, relu=False, name='inception_3a_3x3')
-        inception_3a_3x3_BatchNorm = FPN.batch_normalization(inception_3a_3x3, scale_offset=False, relu=True, name='inception_3a_3x3_BatchNorm')
+        inception_3a_3x3_BatchNorm = FPN.batch_normalization(inception_3a_3x3, scale_offset=False, relu=True, name='inception_3a_3x3_BatchNorm',is_training = is_training)
 
         inception_3a_5x5_reduce = FPN.conv(pool2_3x3_s2, 1, 1, 16, 1, 1, relu=False, name='inception_3a_5x5_reduce')
-        inception_3a_5x5_reduce_BatchNorm = FPN.batch_normalization(inception_3a_5x5_reduce, scale_offset=False, relu=True, name='inception_3a_5x5_reduce_BatchNorm')
+        inception_3a_5x5_reduce_BatchNorm = FPN.batch_normalization(inception_3a_5x5_reduce, scale_offset=False, relu=True, name='inception_3a_5x5_reduce_BatchNorm',is_training = is_training)
         inception_3a_5x5 = FPN.conv(inception_3a_5x5_reduce_BatchNorm, 5, 5, 32, 1, 1, relu=False, name='inception_3a_5x5')
-        inception_3a_5x5_BatchNorm = FPN.batch_normalization(inception_3a_5x5, scale_offset=False, relu=True, name='inception_3a_5x5_BatchNorm')
+        inception_3a_5x5_BatchNorm = FPN.batch_normalization(inception_3a_5x5, scale_offset=False, relu=True, name='inception_3a_5x5_BatchNorm',is_training = is_training)
 
         inception_3a_pool = FPN.max_pool(pool2_3x3_s2, 3, 3, 1, 1, name='inception_3a_pool')
         inception_3a_pool_proj = FPN.conv(inception_3a_pool, 1, 1, 32, 1, 1, relu=False, name='inception_3a_pool_proj')
-        inception_3a_pool_proj_BatchNorm = FPN.batch_normalization(inception_3a_pool_proj, scale_offset=False, relu=True, name='inception_3a_pool_proj_BatchNorm')
+        inception_3a_pool_proj_BatchNorm = FPN.batch_normalization(inception_3a_pool_proj, scale_offset=False, relu=True, name='inception_3a_pool_proj_BatchNorm',is_training = is_training)
 
         inception_3a_output = FPN.concat([inception_3a_1x1_BatchNorm,inception_3a_3x3_BatchNorm,inception_3a_5x5_BatchNorm,inception_3a_pool_proj_BatchNorm], 3, name='inception_3a_output')
         inception_3b_1x1 = FPN.conv(inception_3a_output, 1, 1, 128, 1, 1, relu=False, name='inception_3b_1x1')
-        inception_3b_1x1_BatchNorm = FPN.batch_normalization(inception_3b_1x1, scale_offset=False, relu=True, name='inception_3b_1x1_BatchNorm')
+        inception_3b_1x1_BatchNorm = FPN.batch_normalization(inception_3b_1x1, scale_offset=False, relu=True, name='inception_3b_1x1_BatchNorm',is_training = is_training)
 
         inception_3b_3x3_reduce = FPN.conv(inception_3a_output, 1, 1, 128, 1, 1, relu=False, name='inception_3b_3x3_reduce')
-        inception_3b_3x3_reduce_BatchNorm = FPN.batch_normalization(inception_3b_3x3_reduce, scale_offset=False, relu=True, name='inception_3b_3x3_reduce_BatchNorm')
+        inception_3b_3x3_reduce_BatchNorm = FPN.batch_normalization(inception_3b_3x3_reduce, scale_offset=False, relu=True, name='inception_3b_3x3_reduce_BatchNorm',is_training = is_training)
         inception_3b_3x3 = FPN.conv(inception_3b_3x3_reduce_BatchNorm, 3, 3, 192, 1, 1, relu=False, name='inception_3b_3x3')
-        inception_3b_3x3_BatchNorm = FPN.batch_normalization(inception_3b_3x3, scale_offset=False, relu=True, name='inception_3b_3x3_BatchNorm')
+        inception_3b_3x3_BatchNorm = FPN.batch_normalization(inception_3b_3x3, scale_offset=False, relu=True, name='inception_3b_3x3_BatchNorm',is_training = is_training)
 
         inception_3b_5x5_reduce = FPN.conv(inception_3a_output, 1, 1, 32, 1, 1, relu=False, name='inception_3b_5x5_reduce')
-        inception_3b_5x5_reduce_BatchNorm = FPN.batch_normalization(inception_3b_5x5_reduce, scale_offset=False, relu=True, name='inception_3b_5x5_reduce_BatchNorm')
+        inception_3b_5x5_reduce_BatchNorm = FPN.batch_normalization(inception_3b_5x5_reduce, scale_offset=False, relu=True, name='inception_3b_5x5_reduce_BatchNorm',is_training = is_training)
         inception_3b_5x5 = FPN.conv(inception_3b_5x5_reduce_BatchNorm, 5, 5, 96, 1, 1, relu=False, name='inception_3b_5x5')
-        inception_3b_5x5_BatchNorm = FPN.batch_normalization(inception_3b_5x5, scale_offset=False, relu=True, name='inception_3b_5x5_BatchNorm')
+        inception_3b_5x5_BatchNorm = FPN.batch_normalization(inception_3b_5x5, scale_offset=False, relu=True, name='inception_3b_5x5_BatchNorm',is_training = is_training)
 
         inception_3b_pool = FPN.max_pool(inception_3a_output, 3, 3, 1, 1, name='inception_3b_pool')
         inception_3b_pool_proj = FPN.conv(inception_3b_pool, 1, 1, 64, 1, 1, relu=False, name='inception_3b_pool_proj')
-        inception_3b_pool_proj_BatchNorm = FPN.batch_normalization(inception_3b_pool_proj, scale_offset=False, relu=True, name='inception_3b_pool_proj_BatchNorm')
+        inception_3b_pool_proj_BatchNorm = FPN.batch_normalization(inception_3b_pool_proj, scale_offset=False, relu=True, name='inception_3b_pool_proj_BatchNorm',is_training = is_training)
 
         inception_3b_output = FPN.concat([inception_3b_1x1_BatchNorm,inception_3b_3x3_BatchNorm,inception_3b_5x5_BatchNorm,inception_3b_pool_proj_BatchNorm], 3, name='inception_3b_output')
         pool3_3x3_s2 = FPN.max_pool(inception_3b_output, 3, 3, 2, 2, name='pool3_3x3_s2')
         inception_4a_1x1 = FPN.conv(pool3_3x3_s2, 1, 1, 192, 1, 1, relu=False, name='inception_4a_1x1')
-        inception_4a_1x1_BatchNorm = FPN.batch_normalization(inception_4a_1x1, scale_offset=False, relu=True, name='inception_4a_1x1_BatchNorm')
+        inception_4a_1x1_BatchNorm = FPN.batch_normalization(inception_4a_1x1, scale_offset=False, relu=True, name='inception_4a_1x1_BatchNorm',is_training = is_training)
 
         inception_4a_3x3_reduce = FPN.conv(pool3_3x3_s2, 1, 1, 96, 1, 1, relu=False, name='inception_4a_3x3_reduce')
-        inception_4a_3x3_reduce_BatchNorm = FPN.batch_normalization(inception_4a_3x3_reduce, scale_offset=False, relu=True, name='inception_4a_3x3_reduce_BatchNorm')
+        inception_4a_3x3_reduce_BatchNorm = FPN.batch_normalization(inception_4a_3x3_reduce, scale_offset=False, relu=True, name='inception_4a_3x3_reduce_BatchNorm',is_training = is_training)
         inception_4a_3x3 = FPN.conv(inception_4a_3x3_reduce_BatchNorm, 3, 3, 208, 1, 1, relu=False, name='inception_4a_3x3')
-        inception_4a_3x3_BatchNorm = FPN.batch_normalization(inception_4a_3x3, scale_offset=False, relu=True, name='inception_4a_3x3_BatchNorm')
+        inception_4a_3x3_BatchNorm = FPN.batch_normalization(inception_4a_3x3, scale_offset=False, relu=True, name='inception_4a_3x3_BatchNorm',is_training = is_training)
 
         inception_4a_5x5_reduce = FPN.conv(pool3_3x3_s2, 1, 1, 16, 1, 1, relu=False, name='inception_4a_5x5_reduce')
-        inception_4a_5x5_reduce_BatchNorm = FPN.batch_normalization(inception_4a_5x5_reduce, scale_offset=False, relu=True, name='inception_4a_5x5_reduce_BatchNorm')
+        inception_4a_5x5_reduce_BatchNorm = FPN.batch_normalization(inception_4a_5x5_reduce, scale_offset=False, relu=True, name='inception_4a_5x5_reduce_BatchNorm',is_training = is_training)
         inception_4a_5x5 = FPN.conv(inception_4a_5x5_reduce_BatchNorm, 5, 5, 48, 1, 1, relu=False, name='inception_4a_5x5')
-        inception_4a_5x5_BatchNorm = FPN.batch_normalization(inception_4a_5x5, scale_offset=False, relu=True, name='inception_4a_5x5_BatchNorm')
+        inception_4a_5x5_BatchNorm = FPN.batch_normalization(inception_4a_5x5, scale_offset=False, relu=True, name='inception_4a_5x5_BatchNorm',is_training = is_training)
 
         inception_4a_pool = FPN.max_pool(pool3_3x3_s2, 3, 3, 1, 1, name='inception_4a_pool')
         inception_4a_pool_proj = FPN.conv(inception_4a_pool, 1, 1, 64, 1, 1, relu=False, name='inception_4a_pool_proj')
-        inception_4a_pool_proj_BatchNorm = FPN.batch_normalization(inception_4a_pool_proj, scale_offset=False, relu=True, name='inception_4a_pool_proj_BatchNorm')
+        inception_4a_pool_proj_BatchNorm = FPN.batch_normalization(inception_4a_pool_proj, scale_offset=False, relu=True, name='inception_4a_pool_proj_BatchNorm',is_training = is_training)
 
         inception_4a_output = FPN.concat([inception_4a_1x1_BatchNorm,inception_4a_3x3_BatchNorm,inception_4a_5x5_BatchNorm,inception_4a_pool_proj_BatchNorm], 3, name='inception_4a_output')
         inception_4b_1x1 = FPN.conv(inception_4a_output, 1, 1, 160, 1, 1, relu=False, name='inception_4b_1x1')
-        inception_4b_1x1_BatchNorm = FPN.batch_normalization(inception_4b_1x1, scale_offset=False, relu=True, name='inception_4b_1x1_BatchNorm')
+        inception_4b_1x1_BatchNorm = FPN.batch_normalization(inception_4b_1x1, scale_offset=False, relu=True, name='inception_4b_1x1_BatchNorm',is_training = is_training)
 
         inception_4b_3x3_reduce = FPN.conv(inception_4a_output, 1, 1, 112, 1, 1, relu=False, name='inception_4b_3x3_reduce')
-        inception_4b_3x3_reduce_BatchNorm = FPN.batch_normalization(inception_4b_3x3_reduce, scale_offset=False, relu=True, name='inception_4b_3x3_reduce_BatchNorm')
+        inception_4b_3x3_reduce_BatchNorm = FPN.batch_normalization(inception_4b_3x3_reduce, scale_offset=False, relu=True, name='inception_4b_3x3_reduce_BatchNorm',is_training = is_training)
         inception_4b_3x3 = FPN.conv(inception_4b_3x3_reduce_BatchNorm, 3, 3, 224, 1, 1, relu=False, name='inception_4b_3x3')
-        inception_4b_3x3_BatchNorm = FPN.batch_normalization(inception_4b_3x3, scale_offset=False, relu=True, name='inception_4b_3x3_BatchNorm')
+        inception_4b_3x3_BatchNorm = FPN.batch_normalization(inception_4b_3x3, scale_offset=False, relu=True, name='inception_4b_3x3_BatchNorm',is_training = is_training)
 
         inception_4b_5x5_reduce = FPN.conv(inception_4a_output, 1, 1, 24, 1, 1, relu=False, name='inception_4b_5x5_reduce')
-        inception_4b_5x5_reduce_BatchNorm = FPN.batch_normalization(inception_4b_5x5_reduce, scale_offset=False, relu=True, name='inception_4b_5x5_reduce_BatchNorm')
+        inception_4b_5x5_reduce_BatchNorm = FPN.batch_normalization(inception_4b_5x5_reduce, scale_offset=False, relu=True, name='inception_4b_5x5_reduce_BatchNorm',is_training = is_training)
         inception_4b_5x5 = FPN.conv(inception_4b_5x5_reduce_BatchNorm, 5, 5, 64, 1, 1, relu=False, name='inception_4b_5x5')
-        inception_4b_5x5_BatchNorm = FPN.batch_normalization(inception_4b_5x5, scale_offset=False, relu=True, name='inception_4b_5x5_BatchNorm')
+        inception_4b_5x5_BatchNorm = FPN.batch_normalization(inception_4b_5x5, scale_offset=False, relu=True, name='inception_4b_5x5_BatchNorm',is_training = is_training)
 
         inception_4b_pool = FPN.max_pool(inception_4a_output, 3, 3, 1, 1, name='inception_4b_pool')
         inception_4b_pool_proj = FPN.conv(inception_4b_pool, 1, 1, 64, 1, 1, relu=False, name='inception_4b_pool_proj')
-        inception_4b_pool_proj_BatchNorm = FPN.batch_normalization(inception_4b_pool_proj, scale_offset=False, relu=True, name='inception_4b_pool_proj_BatchNorm')
+        inception_4b_pool_proj_BatchNorm = FPN.batch_normalization(inception_4b_pool_proj, scale_offset=False, relu=True, name='inception_4b_pool_proj_BatchNorm',is_training = is_training)
 
         inception_4b_output = FPN.concat([inception_4b_1x1_BatchNorm,inception_4b_3x3_BatchNorm,inception_4b_5x5_BatchNorm,inception_4b_pool_proj_BatchNorm], 3, name='inception_4b_output')
         inception_4c_1x1 = FPN.conv(inception_4b_output, 1, 1, 128, 1, 1, relu=False, name='inception_4c_1x1')
-        inception_4c_1x1_BatchNorm = FPN.batch_normalization(inception_4c_1x1, scale_offset=False, relu=True, name='inception_4c_1x1_BatchNorm')
+        inception_4c_1x1_BatchNorm = FPN.batch_normalization(inception_4c_1x1, scale_offset=False, relu=True, name='inception_4c_1x1_BatchNorm',is_training = is_training)
 
         inception_4c_3x3_reduce = FPN.conv(inception_4b_output, 1, 1, 128, 1, 1, relu=False, name='inception_4c_3x3_reduce')
-        inception_4c_3x3_reduce_BatchNorm = FPN.batch_normalization(inception_4c_3x3_reduce, scale_offset=False, relu=True, name='inception_4c_3x3_reduce_BatchNorm')
+        inception_4c_3x3_reduce_BatchNorm = FPN.batch_normalization(inception_4c_3x3_reduce, scale_offset=False, relu=True, name='inception_4c_3x3_reduce_BatchNorm',is_training = is_training)
         inception_4c_3x3 = FPN.conv(inception_4c_3x3_reduce_BatchNorm, 3, 3, 256, 1, 1, relu=False, name='inception_4c_3x3')
-        inception_4c_3x3_BatchNorm = FPN.batch_normalization(inception_4c_3x3, scale_offset=False, relu=True, name='inception_4c_3x3_BatchNorm')
+        inception_4c_3x3_BatchNorm = FPN.batch_normalization(inception_4c_3x3, scale_offset=False, relu=True, name='inception_4c_3x3_BatchNorm',is_training = is_training)
 
         inception_4c_5x5_reduce = FPN.conv(inception_4b_output, 1, 1, 24, 1, 1, relu=False, name='inception_4c_5x5_reduce')
-        inception_4c_5x5_reduce_BatchNorm = FPN.batch_normalization(inception_4c_5x5_reduce, scale_offset=False, relu=True, name='inception_4c_5x5_reduce_BatchNorm')
+        inception_4c_5x5_reduce_BatchNorm = FPN.batch_normalization(inception_4c_5x5_reduce, scale_offset=False, relu=True, name='inception_4c_5x5_reduce_BatchNorm',is_training = is_training)
         inception_4c_5x5 = FPN.conv(inception_4c_5x5_reduce_BatchNorm, 5, 5, 64, 1, 1, relu=False, name='inception_4c_5x5')
-        inception_4c_5x5_BatchNorm = FPN.batch_normalization(inception_4c_5x5, scale_offset=False, relu=True, name='inception_4c_5x5_BatchNorm')
+        inception_4c_5x5_BatchNorm = FPN.batch_normalization(inception_4c_5x5, scale_offset=False, relu=True, name='inception_4c_5x5_BatchNorm',is_training = is_training)
 
         inception_4c_pool = FPN.max_pool(inception_4b_output, 3, 3, 1, 1, name='inception_4c_pool')
         inception_4c_pool_proj = FPN.conv(inception_4c_pool, 1, 1, 64, 1, 1, relu=False, name='inception_4c_pool_proj')
-        inception_4c_pool_proj_BatchNorm = FPN.batch_normalization(inception_4c_pool_proj, scale_offset=False, relu=True, name='inception_4c_pool_proj_BatchNorm')
+        inception_4c_pool_proj_BatchNorm = FPN.batch_normalization(inception_4c_pool_proj, scale_offset=False, relu=True, name='inception_4c_pool_proj_BatchNorm',is_training = is_training)
 
         inception_4c_output = FPN.concat([inception_4c_1x1_BatchNorm,inception_4c_3x3_BatchNorm,inception_4c_5x5_BatchNorm,inception_4c_pool_proj_BatchNorm], 3, name='inception_4c_output')
         inception_4d_1x1 = FPN.conv(inception_4c_output, 1, 1, 112, 1, 1, relu=False, name='inception_4d_1x1')
-        inception_4d_1x1_BatchNorm = FPN.batch_normalization(inception_4d_1x1, scale_offset=False, relu=True, name='inception_4d_1x1_BatchNorm')
+        inception_4d_1x1_BatchNorm = FPN.batch_normalization(inception_4d_1x1, scale_offset=False, relu=True, name='inception_4d_1x1_BatchNorm',is_training = is_training)
 
         inception_4d_3x3_reduce = FPN.conv(inception_4c_output, 1, 1, 144, 1, 1, relu=False, name='inception_4d_3x3_reduce')
-        inception_4d_3x3_reduce_BatchNorm = FPN.batch_normalization(inception_4d_3x3_reduce, scale_offset=False, relu=True, name='inception_4d_3x3_reduce_BatchNorm')
+        inception_4d_3x3_reduce_BatchNorm = FPN.batch_normalization(inception_4d_3x3_reduce, scale_offset=False, relu=True, name='inception_4d_3x3_reduce_BatchNorm',is_training = is_training)
         inception_4d_3x3 = FPN.conv(inception_4d_3x3_reduce_BatchNorm, 3, 3, 288, 1, 1, relu=False, name='inception_4d_3x3')
-        inception_4d_3x3_BatchNorm = FPN.batch_normalization(inception_4d_3x3, scale_offset=False, relu=True, name='inception_4d_3x3_BatchNorm')
+        inception_4d_3x3_BatchNorm = FPN.batch_normalization(inception_4d_3x3, scale_offset=False, relu=True, name='inception_4d_3x3_BatchNorm',is_training = is_training)
 
         inception_4d_5x5_reduce = FPN.conv(inception_4c_output, 1, 1, 32, 1, 1, relu=False, name='inception_4d_5x5_reduce')
-        inception_4d_5x5_reduce_BatchNorm = FPN.batch_normalization(inception_4d_5x5_reduce, scale_offset=False, relu=True, name='inception_4d_5x5_reduce_BatchNorm')
+        inception_4d_5x5_reduce_BatchNorm = FPN.batch_normalization(inception_4d_5x5_reduce, scale_offset=False, relu=True, name='inception_4d_5x5_reduce_BatchNorm',is_training = is_training)
         inception_4d_5x5 = FPN.conv(inception_4d_5x5_reduce_BatchNorm, 5, 5, 64, 1, 1, relu=False, name='inception_4d_5x5')
-        inception_4d_5x5_BatchNorm = FPN.batch_normalization(inception_4d_5x5, scale_offset=False, relu=True, name='inception_4d_5x5_BatchNorm')
+        inception_4d_5x5_BatchNorm = FPN.batch_normalization(inception_4d_5x5, scale_offset=False, relu=True, name='inception_4d_5x5_BatchNorm',is_training = is_training)
 
         inception_4d_pool = FPN.max_pool(inception_4c_output, 3, 3, 1, 1, name='inception_4d_pool')
         inception_4d_pool_proj = FPN.conv(inception_4d_pool, 1, 1, 64, 1, 1, relu=False, name='inception_4d_pool_proj')
-        inception_4d_pool_proj_BatchNorm = FPN.batch_normalization(inception_4d_pool_proj, scale_offset=False, relu=True, name='inception_4d_pool_proj_BatchNorm')
+        inception_4d_pool_proj_BatchNorm = FPN.batch_normalization(inception_4d_pool_proj, scale_offset=False, relu=True, name='inception_4d_pool_proj_BatchNorm',is_training = is_training)
 
         inception_4d_output = FPN.concat([inception_4d_1x1_BatchNorm,inception_4d_3x3_BatchNorm,inception_4d_5x5_BatchNorm,inception_4d_pool_proj_BatchNorm], 3, name='inception_4d_output')
         inception_4e_1x1 = FPN.conv(inception_4d_output, 1, 1, 256, 1, 1, relu=False, name='inception_4e_1x1')
-        inception_4e_1x1_BatchNorm = FPN.batch_normalization(inception_4e_1x1, scale_offset=False, relu=True, name='inception_4e_1x1_BatchNorm')
+        inception_4e_1x1_BatchNorm = FPN.batch_normalization(inception_4e_1x1, scale_offset=False, relu=True, name='inception_4e_1x1_BatchNorm',is_training = is_training)
 
         inception_4e_3x3_reduce = FPN.conv(inception_4d_output, 1, 1, 160, 1, 1, relu=False, name='inception_4e_3x3_reduce')
-        inception_4e_3x3_reduce_BatchNorm = FPN.batch_normalization(inception_4e_3x3_reduce, scale_offset=False, relu=True, name='inception_4e_3x3_reduce_BatchNorm')
+        inception_4e_3x3_reduce_BatchNorm = FPN.batch_normalization(inception_4e_3x3_reduce, scale_offset=False, relu=True, name='inception_4e_3x3_reduce_BatchNorm',is_training = is_training)
         inception_4e_3x3 = FPN.conv(inception_4e_3x3_reduce_BatchNorm, 3, 3, 320, 1, 1, relu=False, name='inception_4e_3x3')
-        inception_4e_3x3_BatchNorm = FPN.batch_normalization(inception_4e_3x3, scale_offset=False, relu=True, name='inception_4e_3x3_BatchNorm')
+        inception_4e_3x3_BatchNorm = FPN.batch_normalization(inception_4e_3x3, scale_offset=False, relu=True, name='inception_4e_3x3_BatchNorm',is_training = is_training)
 
         inception_4e_5x5_reduce = FPN.conv(inception_4d_output, 1, 1, 32, 1, 1, relu=False, name='inception_4e_5x5_reduce')
-        inception_4e_5x5_reduce_BatchNorm = FPN.batch_normalization(inception_4e_5x5_reduce, scale_offset=False, relu=True, name='inception_4e_5x5_reduce_BatchNorm')
+        inception_4e_5x5_reduce_BatchNorm = FPN.batch_normalization(inception_4e_5x5_reduce, scale_offset=False, relu=True, name='inception_4e_5x5_reduce_BatchNorm',is_training = is_training)
         inception_4e_5x5 = FPN.conv(inception_4e_5x5_reduce_BatchNorm, 5, 5, 128, 1, 1, relu=False, name='inception_4e_5x5')
-        inception_4e_5x5_BatchNorm = FPN.batch_normalization(inception_4e_5x5, scale_offset=False, relu=True, name='inception_4e_5x5_BatchNorm')
+        inception_4e_5x5_BatchNorm = FPN.batch_normalization(inception_4e_5x5, scale_offset=False, relu=True, name='inception_4e_5x5_BatchNorm',is_training = is_training)
 
         inception_4e_pool = FPN.max_pool(inception_4d_output, 3, 3, 1, 1, name='inception_4e_pool')
         inception_4e_pool_proj = FPN.conv(inception_4e_pool, 1, 1, 128, 1, 1, relu=False, name='inception_4e_pool_proj')
-        inception_4e_pool_proj_BatchNorm = FPN.batch_normalization(inception_4e_pool_proj, scale_offset=False, relu=True, name='inception_4e_pool_proj_BatchNorm')
+        inception_4e_pool_proj_BatchNorm = FPN.batch_normalization(inception_4e_pool_proj, scale_offset=False, relu=True, name='inception_4e_pool_proj_BatchNorm',is_training = is_training)
 
         inception_4e_output = FPN.concat([inception_4e_1x1_BatchNorm,inception_4e_3x3_BatchNorm,inception_4e_5x5_BatchNorm,inception_4e_pool_proj_BatchNorm], 3, name='inception_4e_output')
         pool4_3x3_s2 = FPN.max_pool(inception_4e_output, 3, 3, 2, 2, name='pool4_3x3_s2')
         inception_5a_1x1 = FPN.conv(pool4_3x3_s2, 1, 1, 256, 1, 1, relu=False, name='inception_5a_1x1')
-        inception_5a_1x1_BatchNorm = FPN.batch_normalization(inception_5a_1x1, scale_offset=False, relu=True, name='inception_5a_1x1_BatchNorm')
+        inception_5a_1x1_BatchNorm = FPN.batch_normalization(inception_5a_1x1, scale_offset=False, relu=True, name='inception_5a_1x1_BatchNorm',is_training = is_training)
 
         inception_5a_3x3_reduce = FPN.conv(pool4_3x3_s2, 1, 1, 160, 1, 1, relu=False, name='inception_5a_3x3_reduce')
-        inception_5a_3x3_reduce_BatchNorm = FPN.batch_normalization(inception_5a_3x3_reduce, scale_offset=False, relu=True, name='inception_5a_3x3_reduce_BatchNorm')
+        inception_5a_3x3_reduce_BatchNorm = FPN.batch_normalization(inception_5a_3x3_reduce, scale_offset=False, relu=True, name='inception_5a_3x3_reduce_BatchNorm',is_training = is_training)
         inception_5a_3x3 = FPN.conv(inception_5a_3x3_reduce_BatchNorm, 3, 3, 320, 1, 1, relu=False, name='inception_5a_3x3')
-        inception_5a_3x3_BatchNorm = FPN.batch_normalization(inception_5a_3x3, scale_offset=False, relu=True, name='inception_5a_3x3_BatchNorm')
+        inception_5a_3x3_BatchNorm = FPN.batch_normalization(inception_5a_3x3, scale_offset=False, relu=True, name='inception_5a_3x3_BatchNorm',is_training = is_training)
 
         inception_5a_5x5_reduce = FPN.conv(pool4_3x3_s2, 1, 1, 32, 1, 1, relu=False, name='inception_5a_5x5_reduce')
-        inception_5a_5x5_reduce_BatchNorm = FPN.batch_normalization(inception_5a_5x5_reduce, scale_offset=False, relu=True, name='inception_5a_5x5_reduce_BatchNorm')
+        inception_5a_5x5_reduce_BatchNorm = FPN.batch_normalization(inception_5a_5x5_reduce, scale_offset=False, relu=True, name='inception_5a_5x5_reduce_BatchNorm',is_training = is_training)
         inception_5a_5x5 = FPN.conv(inception_5a_5x5_reduce_BatchNorm, 5, 5, 128, 1, 1, relu=False, name='inception_5a_5x5')
-        inception_5a_5x5_BatchNorm = FPN.batch_normalization(inception_5a_5x5, scale_offset=False, relu=True, name='inception_5a_5x5_BatchNorm')
+        inception_5a_5x5_BatchNorm = FPN.batch_normalization(inception_5a_5x5, scale_offset=False, relu=True, name='inception_5a_5x5_BatchNorm',is_training = is_training)
 
         inception_5a_pool = FPN.max_pool(pool4_3x3_s2, 3, 3, 1, 1, name='inception_5a_pool')
         inception_5a_pool_proj = FPN.conv(inception_5a_pool, 1, 1, 128, 1, 1, relu=False, name='inception_5a_pool_proj')
-        inception_5a_pool_proj_BatchNorm = FPN.batch_normalization(inception_5a_pool_proj, scale_offset=False, relu=True, name='inception_5a_pool_proj_BatchNorm')
+        inception_5a_pool_proj_BatchNorm = FPN.batch_normalization(inception_5a_pool_proj, scale_offset=False, relu=True, name='inception_5a_pool_proj_BatchNorm',is_training = is_training)
 
         inception_5a_output = FPN.concat([inception_5a_1x1_BatchNorm,inception_5a_3x3_BatchNorm,inception_5a_5x5_BatchNorm,inception_5a_pool_proj_BatchNorm], 3, name='inception_5a_output')
         inception_5b_1x1 = FPN.conv(inception_5a_output, 1, 1, 384, 1, 1, relu=False, name='inception_5b_1x1')
-        inception_5b_1x1_BatchNorm = FPN.batch_normalization(inception_5b_1x1, scale_offset=False, relu=True, name='inception_5b_1x1_BatchNorm')
+        inception_5b_1x1_BatchNorm = FPN.batch_normalization(inception_5b_1x1, scale_offset=False, relu=True, name='inception_5b_1x1_BatchNorm',is_training = is_training)
 
         inception_5b_3x3_reduce = FPN.conv(inception_5a_output, 1, 1, 192, 1, 1, relu=False, name='inception_5b_3x3_reduce')
-        inception_5b_3x3_reduce_BatchNorm = FPN.batch_normalization(inception_5b_3x3_reduce, scale_offset=False, relu=True, name='inception_5b_3x3_reduce_BatchNorm')
+        inception_5b_3x3_reduce_BatchNorm = FPN.batch_normalization(inception_5b_3x3_reduce, scale_offset=False, relu=True, name='inception_5b_3x3_reduce_BatchNorm',is_training = is_training)
         inception_5b_3x3 = FPN.conv(inception_5b_3x3_reduce_BatchNorm, 3, 3, 384, 1, 1, relu=False, name='inception_5b_3x3')
-        inception_5b_3x3_BatchNorm = FPN.batch_normalization(inception_5b_3x3, scale_offset=False, relu=True, name='inception_5b_3x3_BatchNorm')
+        inception_5b_3x3_BatchNorm = FPN.batch_normalization(inception_5b_3x3, scale_offset=False, relu=True, name='inception_5b_3x3_BatchNorm',is_training = is_training)
 
         inception_5b_5x5_reduce = FPN.conv(inception_5a_output, 1, 1, 48, 1, 1, relu=False, name='inception_5b_5x5_reduce')
-        inception_5b_5x5_reduce_BatchNorm = FPN.batch_normalization(inception_5b_5x5_reduce, scale_offset=False, relu=True, name='inception_5b_5x5_reduce_BatchNorm')
+        inception_5b_5x5_reduce_BatchNorm = FPN.batch_normalization(inception_5b_5x5_reduce, scale_offset=False, relu=True, name='inception_5b_5x5_reduce_BatchNorm',is_training = is_training)
         inception_5b_5x5 = FPN.conv(inception_5b_5x5_reduce_BatchNorm, 5, 5, 128, 1, 1, relu=False, name='inception_5b_5x5')
-        inception_5b_5x5_BatchNorm = FPN.batch_normalization(inception_5b_5x5, scale_offset=False, relu=True, name='inception_5b_5x5_BatchNorm')
+        inception_5b_5x5_BatchNorm = FPN.batch_normalization(inception_5b_5x5, scale_offset=False, relu=True, name='inception_5b_5x5_BatchNorm',is_training = is_training)
 
         inception_5b_pool = FPN.max_pool(inception_5a_output, 3, 3, 1, 1, name='inception_5b_pool')
         inception_5b_pool_proj = FPN.conv(inception_5b_pool, 1, 1, 128, 1, 1, relu=False, name='inception_5b_pool_proj')
-        inception_5b_pool_proj_BatchNorm = FPN.batch_normalization(inception_5b_pool_proj, scale_offset=False, relu=True, name='inception_5b_pool_proj_BatchNorm')
+        inception_5b_pool_proj_BatchNorm = FPN.batch_normalization(inception_5b_pool_proj, scale_offset=False, relu=True, name='inception_5b_pool_proj_BatchNorm',is_training = is_training)
 
         inception_5b_output = FPN.concat([inception_5b_1x1_BatchNorm,inception_5b_3x3_BatchNorm,inception_5b_5x5_BatchNorm,inception_5b_pool_proj_BatchNorm], 3, name='inception_5b_output')
         p5 = FPN.conv(inception_5b_output, 1, 1, 32, 1, 1, relu=False, name='p5')
