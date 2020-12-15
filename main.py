@@ -1,3 +1,6 @@
+import os
+os.environ["CUDA_VISIBLE_DEVICES"]="0"
+#export TF_FORCE_GPU_ALLOW_GROWTH=true これが必要
 import argparse
 import random
 import tensorflow as tf
@@ -5,7 +8,6 @@ import tensorflow as tf
 from util import loader as ld
 from util import model
 from util import repoter as rp
-
 
 def load_dataset(train_rate):
     loader = ld.Loader(dir_original="data_set/VOCdevkit/VOC2012/JPEGImages",
@@ -32,8 +34,8 @@ def train(parser):
 
     # モデルの生成
     # Create a model
-    model_unet = model.UNet(l2_reg=parser.l2reg).model
-
+    # model_unet = model.UNet(l2_reg=parser.l2reg).model
+    model_unet = model.FPN().model
     # 誤差関数とオプティマイザの設定をします
     # Set a loss function and an optimizer
     cross_entropy = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels=model_unet.teacher,
@@ -49,9 +51,14 @@ def train(parser):
 
     # セッションの初期化をします
     # Initialize session
-    gpu_config = tf.ConfigProto(gpu_options=tf.GPUOptions(per_process_gpu_memory_fraction=0.7), device_count={'GPU': 1},
-                                log_device_placement=False, allow_soft_placement=True)
-    sess = tf.InteractiveSession(config=gpu_config) if gpu else tf.InteractiveSession()
+    # gpu_config = tf.ConfigProto(gpu_options=tf.GPUOptions(per_process_gpu_memory_fraction=0.7), device_count={'GPU': 1},
+    #                             log_device_placement=False, allow_soft_placement=True)
+    
+    # sess = tf.InteractiveSession(config=gpu_config) if gpu else tf.InteractiveSession()
+    physical_devices = tf.config.experimental.list_physical_devices('GPU')
+    tf.config.experimental.set_memory_growth(physical_devices[0], True)
+    session_config = tf.ConfigProto(gpu_options=tf.GPUOptions(allow_growth=True), device_count={'GPU': 1})
+    sess = tf.InteractiveSession(config = session_config)
     tf.global_variables_initializer().run()
 
     # モデルの訓練
@@ -64,6 +71,7 @@ def train(parser):
     test_dict = {model_unet.inputs: test.images_original, model_unet.teacher: test.images_segmented,
                  model_unet.is_training: False}
 
+    saver = tf.train.Saver()
     for epoch in range(epochs):
         for batch in train(batch_size=batch_size, augment=is_augment):
             # バッチデータの展開
@@ -72,6 +80,8 @@ def train(parser):
             # Training
             sess.run(train_step, feed_dict={model_unet.inputs: inputs, model_unet.teacher: teacher,
                                             model_unet.is_training: True})
+            # graph = sess.graph
+            # print([node.name for node in graph.as_graph_def().node if 'transpose' in node.name])
 
         # 評価
         # Evaluation
@@ -85,6 +95,7 @@ def train(parser):
             print("[Test]  Loss:", loss_test, "Accuracy:", accuracy_test)
             accuracy_fig.add([accuracy_train, accuracy_test], is_update=True)
             loss_fig.add([loss_train, loss_test], is_update=True)
+            saver.save(sess, './saved_model/trained')
             if epoch % 3 == 0:
                 idx_train = random.randrange(10)
                 idx_test = random.randrange(100)

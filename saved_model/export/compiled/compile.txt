@@ -1,0 +1,34 @@
+
+Kernel topology "fpn_resnet18_kernel_graph.jpg" for network "fpn_resnet18"
+kernel list info for network "fpn_resnet18"
+                               Kernel ID : Name
+                                       0 : fpn_resnet18
+
+                             Kernel Name : fpn_resnet18
+--------------------------------------------------------------------------------
+                             Kernel Type : DPUKernel
+                               Code Size : 0.18MB
+                              Param Size : 5.85MB
+                           Workload MACs : 1097.79MOPS
+                         IO Memory Space : 0.54MB
+                              Mean Value : 0, 0, 0, 
+                      Total Tensor Count : 129
+                Boundary Input Tensor(s)   (H*W*C)
+                      Placeholder_2:0(0) : 128*128*3
+
+               Boundary Output Tensor(s)   (H*W*C)
+conv2d_transpose_3_conv2d_transpose:0(0) : 128*128*22
+
+                        Total Node Count : 95
+                           Input Node(s)   (H*W*C)
+                        conv2d_Conv2D(0) : 128*128*3
+
+                          Output Node(s)   (H*W*C)
+  conv2d_transpose_3_conv2d_transpose(0) : 128*128*22
+
+
+
+
+**************************************************
+* VITIS_AI Compilation - Xilinx Inc.
+**************************************************
